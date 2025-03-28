@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCPP Test Service</title>
+</head>
+<body>
+    <h1>OCPP Test Service</h1>
+    <fieldset>
+        <legend>Connect</legend>
+        <label for="wsUrlInput">WebSocket URL:</label>
+        <input type="text" id="wsUrlInput" placeholder="ws://localhost:9000">
+        <button id="connectButton">Connect</button>
+    </fieldset>
+    <br>
+
+    <fieldset>
+        <legend>BootNotification</legend>
+        <label for="vendorInput">Charge Point Vendor:</label>
+        <input type="text" id="vendorInput" placeholder="TestVendor">
+        <br>
+        <label for="modelInput">Charge Point Model:</label>
+        <input type="text" id="modelInput" placeholder="TestModel">
+        <br>
+        <label for="serialNumberInput">Charge Point Serial Number:</label>
+        <input type="text" id="serialNumberInput" placeholder="123456789">
+        <br>
+        <label for="firmwareVersionInput">Firmware Version:</label>
+        <input type="text" id="firmwareVersionInput" placeholder="1.0.0">
+        <br>
+        <button id="bootNotificationButton" disabled>Send BootNotification</button>
+    </fieldset>
+    <br>
+
+    <fieldset>
+        <legend>Heartbeat</legend>
+        <button id="heartbeatButton" disabled>Send Heartbeat</button>
+    </fieldset>
+    <br>
+
+    <fieldset>
+        <legend>Transaction</legend>
+        <label for="idTagInput">ID Tag:</label>
+        <input type="text" id="idTagInput" placeholder="Enter ID Tag">
+        <br>
+        <button id="authorizeButton" disabled>Authorize</button>
+        <br>
+        <button id="transactionToggleButton" disabled>Start Transaction</button>
+    </fieldset>
+    <br>
+
+    <fieldset>
+        <legend>Log</legend>
+        <pre id="output"></pre>
+    </fieldset>
+
+    <script>
+        class OCPPTestService {
+            constructor(wsUrl) {
+                this.wsUrl = wsUrl;
+                this.socket = null;
+                this.messageId = 0;
+                this.callbacks = {};
+                this.transactionId = null; // Store transaction ID
+            }
+
+            connect() {
+                const wsUrl = document.getElementById("wsUrlInput").value;
+                this.wsUrl = wsUrl;
+                localStorage.setItem("wsUrl", wsUrl); // Auto-save URL upon connect
+                this.socket = new WebSocket(this.wsUrl);
+
+                this.socket.onopen = () => {
+                    this.log("WebSocket connection established.");
+                    document.getElementById("bootNotificationButton").disabled = false;
+                    document.getElementById("heartbeatButton").disabled = false;
+                    document.getElementById("authorizeButton").disabled = false;
+                    document.getElementById("transactionToggleButton").disabled = false;
+                    document.getElementById("connectButton").textContent = "Disconnect";
+                };
+
+                this.socket.onclose = () => {
+                    this.log("WebSocket connection closed.");
+                    document.getElementById("bootNotificationButton").disabled = true;
+                    document.getElementById("heartbeatButton").disabled = true;
+                    document.getElementById("authorizeButton").disabled = true;
+                    document.getElementById("transactionToggleButton").disabled = true;
+                    document.getElementById("connectButton").textContent = "Connect";
+                };
+
+                this.socket.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    if (message[0] === 3) { // OCPP response message type
+                        this.log("Response: " + JSON.stringify(message)); // Log incoming response
+                        const messageId = message[1];
+                        if (this.callbacks[messageId]) {
+                            this.callbacks[messageId](message[2]);
+                            delete this.callbacks[messageId];
+                        }
+                    } else if (message[0] === 2) { // OCPP call message type
+                        this.handleIncomingCall(message); // Handle incoming call
+                    }
+                };
+
+                this.socket.onerror = (error) => {
+                    this.log("WebSocket error: " + error.message);
+                };
+            }
+
+            disconnect() {
+                if (this.socket) {
+                    this.socket.close();
+                    this.socket = null;
+                }
+            }
+
+            sendCall(action, payload) {
+                if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+                    this.log("WebSocket is not connected.");
+                    return;
+                }
+
+                const messageId = String(++this.messageId);
+                const message = [2, messageId, action, payload];
+                this.log("Request : " + JSON.stringify(message)); // Log outgoing request
+
+                return new Promise((resolve, reject) => {
+                    this.callbacks[messageId] = resolve;
+                    this.socket.send(JSON.stringify(message));
+
+                    setTimeout(() => {
+                        if (this.callbacks[messageId]) {
+                            reject(new Error("OCPP call timed out."));
+                            delete this.callbacks[messageId];
+                        }
+                    }, 30000); // 30 seconds timeout
+                });
+            }
+            
+            handleIncomingCall(message) {
+                if (message[0] === 2) { // OCPP call message type
+                    const messageId = message[1];
+                    const action = message[2];
+                    const payload = message[3];
+
+                    this.log("Received call:     " + JSON.stringify(message));
+
+                    // Default handler: respond with success
+                    const response = [3, messageId, {}];
+                    this.socket.send(JSON.stringify(response));
+                    this.log("Responded to call: " + JSON.stringify(response));
+                }
+            }
+
+            async sendBootNotification() {
+                const vendor = document.getElementById("vendorInput").value || "TestVendor";
+                const model = document.getElementById("modelInput").value || "TestModel";
+                const serialNumber = document.getElementById("serialNumberInput").value || "123456789";
+                const firmwareVersion = document.getElementById("firmwareVersionInput").value || "1.0.0";
+
+                // Save to localStorage
+                localStorage.setItem("chargePointVendor", vendor);
+                localStorage.setItem("chargePointModel", model);
+                localStorage.setItem("chargePointSerialNumber", serialNumber);
+                localStorage.setItem("firmwareVersion", firmwareVersion);
+
+                const payload = {
+                    chargePointVendor: vendor,
+                    chargePointModel: model,
+                    chargePointSerialNumber: serialNumber,
+                    firmwareVersion: firmwareVersion,
+                };
+                return this.sendCall("BootNotification", payload);
+            }
+
+            async sendHeartbeat() {
+                return this.sendCall("Heartbeat", {});
+            }
+
+            async authorize() {
+                const idTag = document.getElementById("idTagInput").value || "DefaultIDTag";
+                const payload = { idTag };
+                return this.sendCall("Authorize", payload);
+            }
+
+            async startTransaction() {
+                const idTag = document.getElementById("idTagInput").value || "DefaultIDTag";
+                const payload = {
+                    idTag,
+                    connectorId: 1,
+                    meterStart: 0,
+                    timestamp: new Date().toISOString(),
+                };
+                const response = await this.sendCall("StartTransaction", payload);
+                this.transactionId = response.transactionId; // Store transaction ID from response
+                return response;
+            }
+
+            async stopTransaction() {
+                if (!this.transactionId) {
+                    this.log("No active transaction to stop.");
+                    return;
+                }
+                const payload = {
+                    transactionId: this.transactionId,
+                    meterStop: 100,
+                    timestamp: new Date().toISOString(),
+                };
+                const response = await this.sendCall("StopTransaction", payload);
+                this.transactionId = null; // Clear transaction ID after stopping
+                return response;
+            }
+
+            log(message) {
+                const output = document.getElementById("output");
+                output.textContent = message + "\n" + output.textContent;
+            }
+        }
+
+        // Load wsUrl and BootNotification fields from localStorage
+        const savedWsUrl = localStorage.getItem("wsUrl") || "ws://localhost:9000";
+        const savedVendor = localStorage.getItem("chargePointVendor") || "TestVendor";
+        const savedModel = localStorage.getItem("chargePointModel") || "TestModel";
+        const savedSerialNumber = localStorage.getItem("chargePointSerialNumber") || "123456789";
+        const savedFirmwareVersion = localStorage.getItem("firmwareVersion") || "1.0.0";
+
+        document.getElementById("wsUrlInput").value = savedWsUrl;
+        document.getElementById("vendorInput").value = savedVendor;
+        document.getElementById("modelInput").value = savedModel;
+        document.getElementById("serialNumberInput").value = savedSerialNumber;
+        document.getElementById("firmwareVersionInput").value = savedFirmwareVersion;
+
+        const ocppService = new OCPPTestService(savedWsUrl);
+
+        document.getElementById("connectButton").addEventListener("click", () => {
+            if (ocppService.socket && ocppService.socket.readyState === WebSocket.OPEN) {
+                ocppService.disconnect();
+            } else {
+                ocppService.connect();
+            }
+        });
+
+        document.getElementById("bootNotificationButton").addEventListener("click", async () => {
+            try {
+                const response = await ocppService.sendBootNotification();
+            } catch (error) {
+            }
+        });
+
+        document.getElementById("heartbeatButton").addEventListener("click", async () => {
+            try {
+                const response = await ocppService.sendHeartbeat();
+            } catch (error) {
+            }
+        });
+
+        document.getElementById("authorizeButton").addEventListener("click", async () => {
+            try {
+                const response = await ocppService.authorize();
+            } catch (error) {
+            }
+        });
+
+        document.getElementById("transactionToggleButton").addEventListener("click", async () => {
+            try {
+                if (document.getElementById("transactionToggleButton").textContent === "Start Transaction") {
+                    const response = await ocppService.startTransaction();
+                    document.getElementById("transactionToggleButton").textContent = "Stop Transaction";
+                } else {
+                    const response = await ocppService.stopTransaction();
+                    document.getElementById("transactionToggleButton").textContent = "Start Transaction";
+                }
+            } catch (error) {
+            }
+        });
+    </script>
+    
+</body>
+</html>
