@@ -1,0 +1,26 @@
+{
+  "name": "ocpp-chargepoint-simulator",
+  "version": "1.0.0",
+  "description": "A very simple ChargePoint simulator. Running directly in your browser, so it works for public and local OCPP CentralSystems.",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/validate-payloads.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/enertech-ch/ocpp-chargepoint-simulator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/enertech-ch/ocpp-chargepoint-simulator/issues"
+  },
+  "homepage": "https://github.com/enertech-ch/ocpp-chargepoint-simulator#readme",
+  "devDependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "ocpp-rpc": "^2.2.1"
+  }
+}
