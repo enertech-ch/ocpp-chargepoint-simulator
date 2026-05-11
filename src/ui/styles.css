@@ -1,0 +1,52 @@
+/* Design tokens. CSS custom properties pierce shadow boundaries, so this
+   file controls the look of every Lit component. Native form-control rules
+   live in src/ui/shared-styles.js because they need to be inside each
+   component's shadow root. */
+
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1c232d;
+  --surface-3: #232b36;
+  --border: #2a3340;
+  --border-strong: #3a4554;
+  --text: #e6edf3;
+  --muted: #8b95a4;
+  --accent: #4fc3f7;
+  --accent-strong: #29b6f6;
+  --accent-soft: rgba(79, 195, 247, 0.14);
+  --accent-ring: rgba(79, 195, 247, 0.35);
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --err: #f87171;
+  --mono: 'JetBrains Mono', 'Fira Mono', 'SF Mono', Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-2: 0 4px 12px rgba(0,0,0,0.35);
+  font-size: 13px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  height: 100vh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body.detached-log { overflow: auto; }
+
+/* Don't set `display` on <ocpp-app> here — light-DOM rules outrank the
+   component's :host rule and would override its grid layout. Sizing alone
+   is fine since :host owns display. */
+ocpp-app { height: 100vh; }
+
+::selection { background: var(--accent-soft); color: var(--text); }

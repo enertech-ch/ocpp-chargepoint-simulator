@@ -1,0 +1,1 @@
+Drop official OCPP 2.1 JSON schemas here. Filename convention: <Action>Request.json (e.g. BootNotificationRequest.json).

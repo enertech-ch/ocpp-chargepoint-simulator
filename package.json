@@ -1,0 +1,18 @@
+{
+  "name": "ocpp-chargepoint-simulator",
+  "version": "2.0.0-dev",
+  "private": true,
+  "type": "module",
+  "description": "Developer-focused OCPP 1.6/2.0.1/2.1 ChargePoint simulator — ESM, no build step.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "serve": "npx serve ."
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "fake-indexeddb": "^6.0.0",
+    "vitest": "^2.1.0"
+  }
+}
